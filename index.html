@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#E24B4A">
+<title>DRIP AI — Virtual Try-On</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red: #E24B4A;
+    --red-dark: #A32D2D;
+    --red-light: #fff0f0;
+    --bg: #f9f9f7;
+    --bg2: #ffffff;
+    --text: #1a1a1a;
+    --text2: #555;
+    --text3: #999;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 2rem;
+  }
+
+  header {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: var(--text);
+  }
+
+  .logo em { color: var(--red); font-style: normal; }
+
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--text3);
+    border: 1px solid var(--border);
+    padding: 4px 9px;
+    border-radius: 20px;
+    background: white;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+
+  .container { padding: 1.25rem; max-width: 480px; margin: 0 auto; }
+
+  .section { margin-bottom: 1.25rem; }
+
+  .lbl {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  /* API KEY */
+  .key-wrap {
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1rem;
+  }
+
+  .key-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .key-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    font-family: monospace;
+    font-size: 12px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .key-toggle {
+    padding: 10px 12px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  .key-hint {
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 6px;
+  }
+
+  /* UPLOAD */
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .upload-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 5px;
+    display: block;
+  }
+
+  .upload-label small {
+    font-weight: 400;
+    color: var(--text3);
+  }
+
+  .uzone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius);
+    background: white;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .uzone:active { transform: scale(0.98); }
+
+  .uzone.filled {
+    border-style: solid;
+    border-color: rgba(0,0,0,0.12);
+    padding: 0;
+  }
+
+  .uzone.filled img {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    border-radius: calc(var(--radius) - 2px);
+    display: block;
+  }
+
+  .uzone-ico { font-size: 26px; opacity: .4; }
+
+  .uzone-txt {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text2);
+    text-align: center;
+    padding: 0 8px;
+  }
+
+  .uzone-sub {
+    font-size: 10px;
+    color: var(--text3);
+    text-align: center;
+  }
+
+  .change-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+
+  .uzone.filled:active .change-overlay { opacity: 1; }
+
+  .chg-btn {
+    color: white;
+    font-size: 11px;
+    background: rgba(255,255,255,.2);
+    border: 1px solid rgba(255,255,255,.4);
+    padding: 6px 14px;
+    border-radius: 20px;
+  }
+
+  /* BRAND */
+  .brand-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  /* STYLES */
+  .styles-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .sbtn {
+    padding: 10px 4px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: white;
+    cursor: pointer;
+    text-align: center;
+    transition: all .15s;
+    font-family: 'DM Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .sbtn:active { transform: scale(0.95); }
+
+  .sbtn.on {
+    border-color: var(--red);
+    background: var(--red-light);
+  }
+
+  .sbtn-ico { font-size: 20px; display: block; margin-bottom: 3px; }
+
+  .sbtn-name {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text2);
+    display: block;
+  }
+
+  .sbtn.on .sbtn-name { color: var(--red-dark); }
+
+  /* GENERATE BUTTON */
+  .gen-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .gen-btn:active { transform: scale(0.98); background: var(--red-dark); }
+
+  .gen-btn:disabled {
+    background: #ddd;
+    color: #aaa;
+    cursor: not-allowed;
+  }
+
+  /* RESULT */
+  .result-section { display: none; }
+  .result-section.show { display: block; }
+
+  .loading-card {
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 1rem;
+  }
+
+  .spinner {
+    width: 38px; height: 38px;
+    border: 2.5px solid var(--border2);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .progress-bar {
+    width: 100%;
+    max-width: 220px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--red);
+    border-radius: 2px;
+    transition: width .6s ease;
+    width: 0%;
+  }
+
+  .load-main {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .load-sub {
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .result-img {
+    width: 100%;
+    border-radius: var(--radius);
+    display: block;
+    border: 1px solid var(--border);
+    margin-bottom: 1rem;
+  }
+
+  .meta-card {
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .style-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--red-light);
+    color: var(--red-dark);
+    margin-bottom: 10px;
+  }
+
+  .caption-text {
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--text);
+    margin-bottom: 10px;
+    white-space: pre-wrap;
+  }
+
+  .hashtag-text {
+    font-size: 12px;
+    color: #185FA5;
+    line-height: 1.9;
+  }
+
+  .tip-box {
+    background: #fff8f0;
+    border-left: 3px solid var(--red);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+
+  .action-btn {
+    padding: 13px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text);
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .action-btn:active { transform: scale(0.97); }
+
+  .action-btn.red {
+    background: var(--red);
+    color: white;
+    border-color: transparent;
+    grid-column: 1 / -1;
+  }
+
+  .action-btn.red:active { background: var(--red-dark); }
+
+  .err-card {
+    background: #fff0f0;
+    border: 1px solid #f7c1c1;
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    font-size: 13px;
+    color: var(--red-dark);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    display: none;
+  }
+
+  /* INSTRUCTIONS */
+  .instructions {
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .instructions h3 {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .step {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--red);
+    color: white;
+    font-size: 10px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-txt {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+
+  input:focus, textarea:focus { outline: 2px solid var(--red); outline-offset: 1px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DRIP<em>AI</em></div>
+  <div class="badge">
+    <div class="badge-dot"></div>
+    Virtual Try-On
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="instructions">
+    <h3>Cómo funciona</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-txt">Sube la foto de tu prenda (zapatilla, polera, chaqueta...)</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-txt">Opcionalmente sube una foto del modelo que quieres usar</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-txt">Elige el estilo y presiona generar — en ~60 seg tienes tu foto + caption para Instagram</div>
+    </div>
+  </div>
+
+  <!-- API KEY -->
+  <div class="section">
+    <span class="lbl">API Key de Replicate</span>
+    <div class="key-wrap">
+      <div class="key-row">
+        <input type="password" class="key-input" id="apiKey" placeholder="r8_..." autocomplete="off">
+        <button class="key-toggle" onclick="toggleKey()" id="toggleBtn">Ver</button>
+      </div>
+      <p class="key-hint">Obtén tu key gratis en replicate.com → Account Settings → API Tokens</p>
+    </div>
+  </div>
+
+  <!-- IMAGES -->
+  <div class="section">
+    <span class="lbl">Fotos</span>
+    <div class="upload-grid">
+      <div>
+        <span class="upload-label">Prenda</span>
+        <div class="uzone" id="z1" onclick="document.getElementById('f1').click()">
+          <div class="uzone-ico">👕</div>
+          <div class="uzone-txt">Toca para subir</div>
+          <div class="uzone-sub">Foto de la prenda</div>
+          <div class="change-overlay"><div class="chg-btn">Cambiar</div></div>
+        </div>
+        <input type="file" id="f1" style="display:none" accept="image/*" onchange="loadImg(event,'z1',1)">
+      </div>
+      <div>
+        <span class="upload-label">Modelo <small>(opcional)</small></span>
+        <div class="uzone" id="z2" onclick="document.getElementById('f2').click()">
+          <div class="uzone-ico">🧍</div>
+          <div class="uzone-txt">Toca para subir</div>
+          <div class="uzone-sub">O usamos uno por defecto</div>
+          <div class="change-overlay"><div class="chg-btn">Cambiar</div></div>
+        </div>
+        <input type="file" id="f2" style="display:none" accept="image/*" onchange="loadImg(event,'z2',2)">
+      </div>
+    </div>
+  </div>
+
+  <!-- BRAND -->
+  <div class="section">
+    <span class="lbl">Nombre de marca</span>
+    <input type="text" class="brand-input" id="brand" placeholder="Ej: Nike, mi tienda, sin nombre...">
+  </div>
+
+  <!-- STYLE -->
+  <div class="section">
+    <span class="lbl">Estilo visual</span>
+    <div class="styles-grid">
+      <button class="sbtn" data-s="deportivo" onclick="pickStyle(this)">
+        <span class="sbtn-ico">⚡</span><span class="sbtn-name">Deportivo</span>
+      </button>
+      <button class="sbtn" data-s="urbano" onclick="pickStyle(this)">
+        <span class="sbtn-ico">🏙️</span><span class="sbtn-name">Urbano</span>
+      </button>
+      <button class="sbtn" data-s="outdoor" onclick="pickStyle(this)">
+        <span class="sbtn-ico">🏔️</span><span class="sbtn-name">Outdoor</span>
+      </button>
+      <button class="sbtn" data-s="elegante" onclick="pickStyle(this)">
+        <span class="sbtn-ico">✨</span><span class="sbtn-name">Elegante</span>
+      </button>
+      <button class="sbtn" data-s="skate" onclick="pickStyle(this)">
+        <span class="sbtn-ico">🛹</span><span class="sbtn-name">Skate</span>
+      </button>
+      <button class="sbtn" data-s="tennis" onclick="pickStyle(this)">
+        <span class="sbtn-ico">🎾</span><span class="sbtn-name">Tennis</span>
+      </button>
+      <button class="sbtn" data-s="football" onclick="pickStyle(this)">
+        <span class="sbtn-ico">⚽</span><span class="sbtn-name">Football</span>
+      </button>
+      <button class="sbtn" data-s="casual" onclick="pickStyle(this)">
+        <span class="sbtn-ico">😎</span><span class="sbtn-name">Casual</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- GENERATE -->
+  <div class="section">
+    <button class="gen-btn" id="genBtn" onclick="generate()" disabled>
+      GENERAR IMAGEN
+    </button>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-section" id="resultSection">
+
+    <div class="loading-card" id="loadCard">
+      <div class="spinner"></div>
+      <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
+      <div class="load-main" id="loadMain">Iniciando...</div>
+      <div class="load-sub" id="loadSub">Esto tarda ~30–60 segundos</div>
+    </div>
+
+    <div class="err-card" id="errCard"></div>
+
+    <img class="result-img" id="resultImg" src="" alt="Resultado" style="display:none">
+
+    <div class="meta-card" id="metaCard" style="display:none">
+      <div class="style-pill" id="stylePill"></div>
+      <div class="caption-text" id="capText"></div>
+      <div class="hashtag-text" id="hashText"></div>
+      <div class="tip-box" id="tipText"></div>
+    </div>
+
+    <div class="actions" id="actRow" style="display:none">
+      <button class="action-btn" onclick="copyCaption()">📋 Copiar caption</button>
+      <button class="action-btn" onclick="dlImg()">💾 Descargar</button>
+      <button class="action-btn red" onclick="reset()">Nueva prenda ↗</button>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  let img1Data = null, img2Data = null, selStyle = null;
+  let genCaption = '', genHash = '', resultUrl = '';
+
+  const styles = {
+    deportivo: { e:'⚡', ctx:'modern sports stadium dramatic lighting action energy', mood:'potente y motivacional' },
+    urbano:    { e:'🏙️', ctx:'urban street night city lights graffiti metropolitan', mood:'auténtico y callejero' },
+    outdoor:   { e:'🏔️', ctx:'mountain trail golden hour dramatic sky wilderness', mood:'aventurero y libre' },
+    elegante:  { e:'✨', ctx:'luxury minimalist studio soft lighting premium aesthetic', mood:'sofisticado y aspiracional' },
+    skate:     { e:'🛹', ctx:'concrete skatepark underground culture urban raw', mood:'rebelde y auténtico' },
+    tennis:    { e:'🎾', ctx:'grass tennis court Wimbledon clean athletic classic', mood:'clásico y deportivo' },
+    football:  { e:'⚽', ctx:'football stadium green pitch floodlights epic atmosphere', mood:'épico y apasionante' },
+    casual:    { e:'😎', ctx:'modern coffee shop stylish everyday relaxed cool', mood:'relajado y con estilo' }
+  };
+
+  function toggleKey() {
+    const inp = document.getElementById('apiKey');
+    const btn = document.getElementById('toggleBtn');
+    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Ocultar'; }
+    else { inp.type = 'password'; btn.textContent = 'Ver'; }
+  }
+
+  function loadImg(ev, zoneId, num) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const d = e.target.result;
+      if (num === 1) img1Data = d;
+      else img2Data = d;
+      const zone = document.getElementById(zoneId);
+      zone.innerHTML = `<img src="${d}" alt=""><div class="change-overlay"><div class="chg-btn">Cambiar</div></div>`;
+      zone.classList.add('filled');
+      zone.onclick = () => document.getElementById(num===1?'f1':'f2').click();
+      checkReady();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function pickStyle(btn) {
+    document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    selStyle = btn.dataset.s;
+    checkReady();
+  }
+
+  function checkReady() {
+    const key = document.getElementById('apiKey').value.trim();
+    document.getElementById('genBtn').disabled = !(img1Data && selStyle && key);
+  }
+
+  document.getElementById('apiKey').addEventListener('input', checkReady);
+
+  function setProgress(p, main, sub) {
+    document.getElementById('progFill').style.width = p + '%';
+    if (main) document.getElementById('loadMain').textContent = main;
+    if (sub !== undefined) document.getElementById('loadSub').textContent = sub;
+  }
+
+  async function generate() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const brand = document.getElementById('brand').value || 'la marca';
+    const cfg = styles[selStyle];
+
+    document.getElementById('resultSection').classList.add('show');
+    document.getElementById('loadCard').style.display = 'flex';
+    document.getElementById('resultImg').style.display = 'none';
+    document.getElementById('metaCard').style.display = 'none';
+    document.getElementById('actRow').style.display = 'none';
+    document.getElementById('errCard').style.display = 'none';
+    document.getElementById('genBtn').disabled = true;
+    document.getElementById('genBtn').textContent = 'GENERANDO...';
+
+    window.scrollTo({ top: document.getElementById('resultSection').offsetTop - 20, behavior: 'smooth' });
+
+    setProgress(5, 'Preparando caption...', 'Generando texto para Instagram');
+
+    try {
+      // 1. Generate caption locally based on style
+      const captions = {
+        deportivo: { caption: `⚡ Sin límites. Sin excusas.\n\nCada entrenamiento es una oportunidad de superar tu mejor versión. Esta pieza de ${brand} fue diseñada para los que no se detienen, los que empujan más fuerte cuando otros se rinden.\n\n💪 ¿Estás listo para el siguiente nivel?`, hashtags: '#Deportivo #Fitness #Training #${brand} #Sport #Workout #Atletismo #Rendimiento #Deporte #RunningStyle #GymLife #ActiveWear #SportsFashion #NoExcuses #FitLife', tip: 'Publica entre 6-8am o 6-8pm cuando tu audiencia deportiva está más activa.' },
+        urbano: { caption: `🏙️ La calle es nuestra pasarela.\n\n${brand} nació en el asfalto, se forjó entre edificios y actitudes. Esta pieza no es solo ropa — es una declaración de quién eres y de dónde vienes.\n\n🔥 Represéntala donde vayas.`, hashtags: '#Urbano #Streetwear #${brand} #UrbanStyle #CallejeRo #Street #Moda #Fashion #UrbanFashion #Swag #Drip #StyleOfTheDay #OOTD #StreetStyle #Hypebeast', tip: 'El contenido urbano funciona mejor en Reels con música trap o lo-fi de fondo.' },
+        outdoor: { caption: `🏔️ Hecho para los que se atreven.\n\n Las montañas no esperan y tú tampoco deberías. ${brand} te acompaña en cada cumbre, cada sendero, cada aventura que vale la pena contar.\n\n🌿 La naturaleza te llama. ¿Respondes?`, hashtags: '#Outdoor #Aventura #${brand} #Montana #Trekking #NatureLovers #OutdoorLife #Hiking #TrailRunning #Naturaleza #Explore #Adventure #OutdoorFashion #WildLife #CaminoALaCumbre', tip: 'Las fotos en exteriores reales generan 3x más engagement que las de estudio.' },
+        elegante: { caption: `✨ La elegancia no es un lujo, es una actitud.\n\n${brand} redefine lo que significa vestir bien. Cada detalle pensado, cada línea perfecta. Para los momentos que importan y para los que simplemente mereces lo mejor.\n\n🖤 Porque tú lo vales.`, hashtags: '#Elegante #Luxury #${brand} #Fashion #Style #Moda #LuxuryFashion #Sofisticado #Premium #HighFashion #StyleInspo #ElegantStyle #Chic #FashionLovers #OOTDModa', tip: 'El estilo elegante convierte mejor con fondos neutros y luz natural suave.' },
+        skate: { caption: `🛹 No seguimos reglas. Las rompemos.\n\n${brand} es para los que hacen lo suyo, sin pedir permiso. En el skatepark o en la calle, esta pieza aguanta tanto como tú.\n\n✊ Be yourself. Skate everything.`, hashtags: '#Skate #Skateboarding #${brand} #SkateStyle #SkaterBoy #SkateLife #Streetskate #Underground #SkateOrDie #PushPush #SkateBoard #TricksOnDeck #SkaterGirl #SkateVibes #BornToSkate', tip: 'Los videos cortos de tricks con tu ropa puesta son el contenido que más viraliza en skate.' },
+        tennis: { caption: `🎾 Clase y potencia en cada golpe.\n\n${brand} combina el estilo clásico del tenis con el rendimiento que exige el juego moderno. En cancha o fuera de ella, siempre impecable.\n\n🏆 Game. Set. Style.`, hashtags: '#Tennis #Tenis #${brand} #TennisStyle #TennisLife #SportStyle #CourtStyle #TennisFashion #AceStyle #TennisPlayer #GrassCourt #TennisCourt #SportsFashion #TennisLovers #ClassicSport', tip: 'Asocia tu marca a torneos o eventos deportivos locales para ganar credibilidad.' },
+        football: { caption: `⚽ La pasión no se apaga. Nunca.\n\n${brand} entiende lo que sientes cuando entras a la cancha. Cada partido es una historia, cada gol un momento eterno. Viste los colores que te representan.\n\n🔴⚪ Por el amor al juego.`, hashtags: '#Football #Futbol #${brand} #Soccer #FutbolStyle #GoalStyle #SoccerLife #FutbolArgentino #FutbolChileno #Gol #LaLiga #Champions #FutbolFashion #CancharStyle #ElBellissimo', tip: 'Publica en días de partido para aprovechar el pico de conversación futbolera.' },
+        casual: { caption: `😎 Simple. Cómodo. Tú.\n\n${brand} para los días en que quieres verte bien sin esforzarte demasiado. Porque el estilo real es el que se siente natural.\n\n☀️ Así de fácil. Así de bien.`, hashtags: '#Casual #CasualStyle #${brand} #Everyday #EverydayLook #OOTD #CasualFashion #Comodo #SimpleStyle #DailyLook #CasualChic #FashionDaily #StyleDaily #LifestyleStyle #EasyStyle', tip: 'El contenido casual y auténtico genera más confianza que las fotos muy producidas.' }
+      };
+
+      const c = captions[selStyle];
+      genCaption = c.caption.replace(/\${brand}/g, brand);
+      genHash = c.hashtags.replace(/\${brand}/g, brand);
+      const tip = c.tip;
+
+      // 2. Upload images directly to Replicate Files API from browser
+      async function compressToJpeg(dataUrl, maxW=768) {
+        return new Promise(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+          };
+          img.src = dataUrl;
+        });
+      }
+
+      async function uploadImage(dataUrl, apiKey) {
+        const base64 = await compressToJpeg(dataUrl, 768);
+        const r = await fetch('/api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'upload', imageBase64: base64, apiKey })
+        });
+        const d = await r.json();
+        if (!d.urls || !d.urls.get) throw new Error('Upload error: ' + JSON.stringify(d));
+        return d.urls.get;
+      }
+
+      setProgress(20, 'Subiendo prenda...', 'Cargando al servidor');
+      const garmentUrl = await uploadImage(img1Data, apiKey);
+
+      let personUrl = 'https://images.unsplash.com/photo-1567013127542-490d757e51cd?w=512&h=768&fit=crop&crop=center';
+      if (img2Data) {
+        setProgress(35, 'Subiendo modelo...', 'Cargando imagen del modelo');
+        personUrl = await uploadImage(img2Data, apiKey);
+      }
+
+      setProgress(45, 'Generando imagen...', 'Conectando con IDM-VTON');
+
+      const repResp = await fetch('/api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'predict',
+          apiKey,
+          input: {
+            garm_img: garmentUrl,
+            human_img: personUrl,
+            garment_des: `${selStyle} style clothing for ${brand}, ${cfg.ctx}`,
+            is_checked: true,
+            is_checked_crop: false,
+            denoise_steps: 30,
+            seed: 42
+          }
+        })
+      });
+
+      const prediction = await repResp.json();
+      if (prediction.error) throw new Error(prediction.error);
+      if (!prediction.id) throw new Error('No se pudo crear la predicción: ' + JSON.stringify(prediction));
+      const predId = prediction.id;
+
+      setProgress(50, 'Modelo procesando...', 'Virtual try-on en progreso (~30–60 seg)');
+
+      // 3. Poll
+      let attempts = 0;
+      while (attempts < 60) {
+        await new Promise(r => setTimeout(r, 3000));
+        attempts++;
+        const prog = Math.min(50 + attempts * 1.2, 92);
+        setProgress(prog, 'Generando imagen realista...', `Procesando... (${attempts * 3}s)`);
+
+        const poll = await fetch('/api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'poll', predId, apiKey })
+        });
+        const pollData = await poll.json();
+
+        if (pollData.status === 'succeeded') {
+          const outputUrl = Array.isArray(pollData.output) ? pollData.output[0] : pollData.output;
+          resultUrl = outputUrl;
+          setProgress(100, '¡Lista!', '');
+
+          document.getElementById('loadCard').style.display = 'none';
+          document.getElementById('resultImg').src = outputUrl;
+          document.getElementById('resultImg').style.display = 'block';
+
+          document.getElementById('stylePill').textContent = `${cfg.e} ${selStyle.charAt(0).toUpperCase() + selStyle.slice(1)}`;
+          document.getElementById('capText').textContent = genCaption;
+          document.getElementById('hashText').textContent = genHash;
+          document.getElementById('tipText').textContent = '💡 ' + tip;
+          document.getElementById('metaCard').style.display = 'block';
+          document.getElementById('actRow').style.display = 'grid';
+
+          window.scrollTo({ top: document.getElementById('resultImg').offsetTop - 20, behavior: 'smooth' });
+          break;
+
+        } else if (pollData.status === 'failed' || pollData.status === 'canceled') {
+          throw new Error(pollData.error || 'El modelo falló. Intenta de nuevo.');
+        }
+      }
+
+      if (attempts >= 60) throw new Error('Tiempo de espera agotado. Intenta de nuevo.');
+
+    } catch (err) {
+      document.getElementById('loadCard').style.display = 'none';
+      const errCard = document.getElementById('errCard');
+      errCard.style.display = 'block';
+      errCard.innerHTML = `<strong>Error:</strong> ${err.message}<br><small>Verifica tu API key y que tengas créditos en replicate.com</small>`;
+      document.getElementById('actRow').style.display = 'grid';
+    } finally {
+      document.getElementById('genBtn').disabled = false;
+      document.getElementById('genBtn').textContent = 'GENERAR IMAGEN';
+      checkReady();
+    }
+  }
+
+  function copyCaption() {
+    const text = genCaption + '\n\n' + genHash;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copiado!';
+        setTimeout(() => btn.textContent = orig, 2000);
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('Caption copiado!');
+    }
+  }
+
+  function dlImg() {
+    if (!resultUrl) return;
+    const a = document.createElement('a');
+    a.href = resultUrl;
+    a.download = `dripai-${selStyle}-${Date.now()}.jpg`;
+    a.target = '_blank';
+    a.click();
+  }
+
+  function reset() {
+    img1Data = null; img2Data = null; selStyle = null;
+    genCaption = ''; genHash = ''; resultUrl = '';
+    ['z1','z2'].forEach((id,i) => {
+      const z = document.getElementById(id);
+      z.className = 'uzone';
+      z.innerHTML = i===0
+        ? '<div class="uzone-ico">👕</div><div class="uzone-txt">Toca para subir</div><div class="uzone-sub">Foto de la prenda</div><div class="change-overlay"><div class="chg-btn">Cambiar</div></div>'
+        : '<div class="uzone-ico">🧍</div><div class="uzone-txt">Toca para subir</div><div class="uzone-sub">O usamos uno por defecto</div><div class="change-overlay"><div class="chg-btn">Cambiar</div></div>';
+      z.onclick = () => document.getElementById(i===0?'f1':'f2').click();
+    });
+    document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('on'));
+    document.getElementById('brand').value = '';
+    document.getElementById('resultSection').classList.remove('show');
+    document.getElementById('genBtn').disabled = true;
+    document.getElementById('genBtn').textContent = 'GENERAR IMAGEN';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
